@@ -1,23 +1,16 @@
 import { Result } from "../models/result.model.js";
 import cleanUpResult from "../utils/cleanUpResult.js";
 
-const sendResult = async (req,res) => {
-    const {id} = req.params;
-    const result = await Result.findById(id);
-    const cleanResult = cleanUpResult(result, true);
-    res.status(200).json(cleanResult);
-}
-
-const limitResultsSend = async (req, res)=>{
-    const {start = " 0"} = req.query;
-    const userId = req.user._id;
-    const results = await Result.find({user: userId})
-        .sort({completedAt: -1})
-        .skip(Number(start))
-        .limit(5);
-    const cleanResults = results.map(result => cleanUpResult(result));
-    res.status(200).json(cleanResults);
-}
+const limitResultsSend = async (req, res) => {
+  const { start = " 0" } = req.query;
+  const userId = req.user._id;
+  const results = await Result.find({ user: userId })
+    .sort({ completedAt: -1 })
+    .skip(Number(start))
+    .limit(5);
+  const cleanResults = results.map((result) => cleanUpResult(result));
+  res.status(200).json(cleanResults);
+};
 
 const defultResult = async (req, res) => {
   try {
@@ -73,5 +66,40 @@ const defultResult = async (req, res) => {
   }
 };
 
+const sendingId = async (req, res) => {
+  const { evaluations, name, id } = req.body;
+  const totalScore = evaluations.reduce((sum, q) => sum + q.score, 0);
+  const resultDoc = await Result.create({
+    user: req.user._id,
+    test: id,
+    score: totalScore,
+    testName: name,
+    questionResults: evaluations.map((e) => ({
+      questionId: e.questionId,
+      questionText: e.questionText,
+      correctAnswer: e.correctAnswer,
+      userAnswer: e.userAnswer,
+      score: e.score,
+      feedback: e.feedback,
+    })),
+  });
+  return res.status(200).json({ resultId: resultDoc._id });
+};
 
-export { sendResult, limitResultsSend, defultResult };
+const sendResult = async (req, res) => {
+  const { id } = req.params;
+  const result = await Result.findById(id).lean();
+  const {
+    completedAt,
+    __v,
+    test,
+    user,
+    updatedAt,
+    createdAt,
+    _id,
+    ...safeResult
+  } = result;
+  res.status(200).json(safeResult);
+};
+
+export { sendingId, limitResultsSend, defultResult, sendResult };
