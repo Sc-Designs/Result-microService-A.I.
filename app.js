@@ -11,6 +11,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors())
 app.use("/", resultRouter);
 
-app.listen(3005, () => {
-  console.log("Result microservice running on port 3005");
+app.listen(3000, () => {
+  console.log("Result microservice running on port 3000");
 });
