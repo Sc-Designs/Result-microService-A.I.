@@ -1,5 +1,7 @@
 import { Result } from "../models/result.model.js";
 import cleanUpResult from "../utils/cleanUpResult.js";
+import axios from "axios";
+import {env} from "../config/Zod.cheker.js";
 
 const limitResultsSend = async (req, res) => {
   const { start = " 0" } = req.query;
@@ -102,4 +104,89 @@ const sendResult = async (req, res) => {
   res.status(200).json(safeResult);
 };
 
-export { sendingId, limitResultsSend, defultResult, sendResult };
+const getTestAnalytics = async (req, res) => {
+  try {
+    const { testId } = req.params;
+
+    const results = await Result.find({ test: testId })
+      .sort({ completedAt: 1 })
+      .lean();
+
+    if (!results.length) {
+      return res.status(200).json({ participants: [], chartData: [] });
+    }
+
+    // Unique user IDs from all results
+    const userIds = [...new Set(results.map((r) => r.user.toString()))];
+
+    // Single batch call to user service
+    const { data: usersData } = await axios.get(
+      `${env.USER_API_URL}/api/users/batch`,
+      {
+        params: { ids: userIds.join(",") },
+        headers: {
+          "x-gateway-secret": env.GATEWAY_SECRET,
+          Authorization: `Bearer ${req.org.token}`,
+        },
+      },
+    );
+
+    // Map userId → user object for O(1) lookup
+    const userMap = {};
+    usersData.users.forEach((u) => {
+      userMap[u._id] = u;
+    });
+
+    const participants = results.map((r) => {
+      const u = userMap[r.user.toString()] || {};
+      return {
+        resultId: r._id,
+        userId: r.user,
+        name: u.name || "Unknown",
+        email: u.email || "—",
+        avatar: u.profileImage || "",
+        score: r.score,
+        testName: r.testName,
+        completedAt: r.completedAt,
+      };
+    });
+
+    const chartData = participants.map((p, i) => ({
+      index: i + 1,
+      name: p.name,
+      score: p.score,
+      date: new Date(p.completedAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+    }));
+
+    res.status(200).json({ participants, chartData });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+const getResultReview = async (req, res) => {
+  try {
+    const { resultId } = req.params;
+    const result = await Result.findById(resultId)
+      .select("questionResults score testName completedAt")
+      .lean();
+    if (!result) return res.status(404).json({ message: "Result not found" });
+    res.status(200).json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+export {
+  sendingId,
+  limitResultsSend,
+  defultResult,
+  sendResult,
+  getTestAnalytics,
+  getResultReview
+};

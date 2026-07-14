@@ -1,5 +1,5 @@
 import axios from "axios";
-
+import { env } from "../config/Zod.cheker.js";
 const isOrgLoggedIn = async (req, res, next) => {
   try {
     let token = req.cookies?.OrganizationToken;
@@ -10,15 +10,17 @@ const isOrgLoggedIn = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    const response = await axios.get(`${process.env.ORG_API_URL}/api/profile`, {
+    const response = await axios.get(`${env.ORG_API_URL}/api/profile`, {
       headers: {
         Authorization: `Bearer ${token}`,
+        "x-gateway-secret": env.GATEWAY_SECRET,
       },
     });
     if (!response.data) {
       return res.status(403).json({ error: "Access denied" });
     }
     req.org = response.data;
+    req.org.token = token;
     return next();
   } catch (error) {
     console.log(error);

@@ -1,3 +1,4 @@
+import { env } from "../config/Zod.cheker.js"
 const tryCatch = (controller) => {
   return async (req, res, next) => {
     try {
@@ -8,7 +9,7 @@ const tryCatch = (controller) => {
       res.status(error.statusCode || 500).json({
         success: false,
         message: error.message || "Internal Server Error",
-        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+        stack: env.NODE_ENV === "development" ? error.stack : undefined,
       });
     }
   };
