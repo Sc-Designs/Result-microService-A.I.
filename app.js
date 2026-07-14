@@ -56,6 +56,10 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 // GATEWAY SECRET VERIFICATION
 // ----------------------
 app.use((req, res, next) => {
+  // Allow Render health checks to pass without gateway secret
+  if (req.path === "/" && (req.method === "GET" || req.method === "HEAD")) {
+    return next();
+  }
   const incomingSecret = req.headers["x-gateway-secret"];
   if (!incomingSecret) {
     console.warn(
